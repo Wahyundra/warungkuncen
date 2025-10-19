@@ -1,0 +1,85 @@
+Berikut adalah rancangan desain aplikasi untuk penjualan dan pemesanan "Warung Kuncen" secara lengkap dan rinci, tanpa menyertakan kode.
+
+## 1. Struktur Folder dan File
+Aplikasi ini akan diorganisir dalam struktur folder yang rapi untuk memisahkan logika, tampilan, dan aset.
+- **`D:\New folder\htdocs\tokosaya\`**
+  - **`assets\`**
+    - **`css\`**: File CSS kustom.
+    - **`js\`**: File JavaScript kustom.
+    - **`img\`**: Berisi gambar-gambar produk (`soto1.jpg`, `ketoprak.jpg`, `pentol.jpg`, `donat.jpg`, `donatsalju.jpg`, `rotitape.jpg`).
+  - **`admin\`**
+    - `index.php`: Halaman dashboard admin setelah login.
+    - `login.php`: Halaman untuk login admin.
+    - `kelola_produk.php`: Halaman untuk menambah, mengedit, dan menghapus produk.
+    - `kelola_pesanan.php`: Halaman untuk melihat dan mengelola pesanan.
+  - **`config\`**
+    - `koneksi.php`: File konfigurasi untuk koneksi ke database.
+  - `index.php`: Halaman utama dan tampilan menu untuk user.
+  - `pesan.php`: Halaman keranjang belanja dan form pemesanan.
+  - `transaksi.php`: Halaman untuk melacak status pesanan.
+  - `tentang.php`: Halaman informasi tentang Warung Kuncen.
+---
+## 2. Desain Database MySQL
+Database bernama **`dbwarkun`** akan memiliki empat tabel utama untuk mengelola data produk, user, dan pesanan.
+- **`produk`**
+  - `id_produk` (INT, PRIMARY KEY, AUTO_INCREMENT)
+  - `nama_produk` (VARCHAR)
+  - `deskripsi` (TEXT)
+  - `harga` (DECIMAL)
+  - `gambar` (VARCHAR)
+  - `stok` (INT)
+- **`user`**
+  - `id_user` (INT, PRIMARY KEY, AUTO_INCREMENT)
+  - `nama_user` (VARCHAR)
+  - `email` (VARCHAR, UNIQUE)
+  - `password` (VARCHAR, MD5 encrypted)
+  - `alamat` (TEXT)
+  - `level` (ENUM: 'admin', 'user')
+- **`pesanan`**
+  - `id_pesanan` (INT, PRIMARY KEY, AUTO_INCREMENT)
+  - `id_user` (INT, FOREIGN KEY)
+  - `tanggal_pesan` (DATETIME)
+  - `total_harga` (DECIMAL)
+  - `status_pesanan` (ENUM: 'menunggu', 'diproses', 'selesai', 'dibatalkan')
+- **`detail_pesanan`**
+  - `id_detail` (INT, PRIMARY KEY, AUTO_INCREMENT)
+  - `id_pesanan` (INT, FOREIGN KEY)
+  - `id_produk` (INT, FOREIGN KEY)
+  - `jumlah` (INT)
+  - `subtotal` (DECIMAL)
+---
+## 3. Desain Tampilan (Layout) dengan Bootstrap 5
+Desain antarmuka akan menggunakan **Bootstrap 5** untuk memastikan tampilan yang modern dan responsif di berbagai perangkat.
+
+### A. Halaman User
+- **Navigasi Atas**: Navbar responsif dengan logo Warung Kuncen, tombol **Menu**, **Pesanan**, **Kontak**, dan **Login/Akun Saya**.
+- **Halaman Utama (`index.php`)**:
+  - Terdapat banner atau carousel yang menampilkan gambar promosi.
+  - Bagian utama menampilkan daftar produk dalam format **cards**. 
+  - Setiap card produk berisi: **gambar produk**, **nama**, **deskripsi singkat**, **harga**, dan tombol **'Tambah ke Keranjang'**.
+- **Halaman Pemesanan (`pesan.php`)**:
+  - Keranjang belanja ditampilkan dalam format tabel dengan kolom: **Nama Produk**, **Jumlah**, **Harga**, **Subtotal**, dan tombol **'Hapus'**.
+  - Di bawah tabel, terdapat ringkasan **Total Harga**.
+  - Terdapat formulir sederhana untuk memasukkan data pemesan (Nama, Alamat, No. HP, Catatan).
+  - Tombol **'Konfirmasi Pesanan'** akan memproses pesanan dan menyimpannya ke database.
+- **Halaman Transaksi (`transaksi.php`)**:
+  - Menampilkan riwayat pesanan user dalam bentuk tabel.
+  - Setiap baris tabel menunjukkan **ID Pesanan**, **Tanggal**, **Total Harga**, dan **Status Pesanan**.
+  - Status pesanan akan diperbarui secara otomatis sesuai data dari admin.
+
+### B. Halaman Admin
+- **Halaman Login (`admin/login.php`)**:
+  - Terdapat formulir sederhana dengan input **Email** dan **Password**.
+  - Password akan diverifikasi dengan nilai **MD5** yang tersimpan di database.
+- **Dashboard Admin (`admin/index.php`)**:
+  - Setelah login, admin akan diarahkan ke halaman ini.
+  - Dashboard akan menampilkan ringkasan data penting, seperti jumlah pesanan baru, total pendapatan, dan produk terlaris.
+  - Sidebar navigasi ke halaman **Kelola Produk** dan **Kelola Pesanan**.
+- **Kelola Produk (`admin/kelola_produk.php`)**:
+  - Terdapat tabel yang menampilkan semua produk.
+  - Setiap baris memiliki tombol **'Edit'** dan **'Hapus'**.
+  - Tombol **'Tambah Produk Baru'** akan memunculkan formulir untuk memasukkan data produk.
+- **Kelola Pesanan (`admin/kelola_pesanan.php`)**:
+  - Tabel yang berisi daftar pesanan.
+  - Kolomnya meliputi **ID Pesanan**, **Nama Pembeli**, **Tanggal**, **Total Harga**, dan **Status**.
+  - Setiap pesanan memiliki tombol **'Lihat Detail'** yang menampilkan produk apa saja yang dipesan, dan tombol **'Ubah Status'** untuk mengubah status pesanan.
