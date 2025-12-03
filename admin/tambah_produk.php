@@ -141,9 +141,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <hr>
         <ul class="nav nav-pills flex-column mb-auto">
             <li class="nav-item"><a href="index.php" class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-            <li><a href="kelola_produk.php" class="nav-link active"><i class="bi bi-box-seam"></i> Kelola Produk</a></li>
+            <!-- <li><a href="kelola_produk.php" class="nav-link active"><i class="bi bi-box-seam"></i> Kelola Produk</a></li> -->
             <li><a href="kelola_pesanan.php" class="nav-link"><i class="bi bi-receipt"></i> Kelola Pesanan</a></li>
             <li><a href="kelola_pesan.php" class="nav-link"><i class="bi bi-envelope"></i> Kelola Pesan</a></li>
+            <li><a href="kelola_toko.php" class="nav-link"><i class="bi bi-shop"></i> Kelola Toko</a></li>
         </ul>
         <hr>
         <div class="dropdown">

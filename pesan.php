@@ -1,6 +1,19 @@
 <?php
 require_once 'config/koneksi.php';
 
+// Ambil data user jika sudah login
+$logged_in_user = null;
+if (isset($_SESSION['user_id'])) {
+    $user_id = $_SESSION['user_id'];
+    $sql_get_user = "SELECT nama_user, email, alamat FROM user WHERE id_user = ?";
+    $stmt_get_user = $koneksi->prepare($sql_get_user);
+    $stmt_get_user->bind_param("i", $user_id);
+    $stmt_get_user->execute();
+    $result_get_user = $stmt_get_user->get_result();
+    $logged_in_user = $result_get_user->fetch_assoc();
+    $stmt_get_user->close();
+}
+
 // --- LOGIKA KERANJANG BELANJA ---
 
 // Inisialisasi keranjang jika belum ada
@@ -33,24 +46,46 @@ if (isset($_GET['hapus'])) {
     exit;
 }
 
+// 3. Mengupdate jumlah produk di keranjang
+if (isset($_POST['update_quantity'])) {
+    $id_produk_update = (int)$_POST['update_quantity_id'];
+    $new_quantity = (int)$_POST['quantity'];
+
+    if ($new_quantity > 0) {
+        $_SESSION['keranjang'][$id_produk_update] = $new_quantity;
+    } else {
+        // If quantity is 0 or less, remove the item
+        unset($_SESSION['keranjang'][$id_produk_update]);
+    }
+    header('Location: pesan.php');
+    exit;
+}
+
 // --- LOGIKA PROSES CHECKOUT ---
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['checkout'])) {
     $nama_user = $_POST['nama_user'];
     $email = $_POST['email'];
     $alamat = $_POST['alamat'];
-    $password = md5(rand()); // Buat password acak untuk user guest
+    $id_user = null; // Initialize id_user
 
     // Mulai transaksi database
     $koneksi->begin_transaction();
 
     try {
-        // Step 1: Buat user baru untuk guest checkout
-        $sql_user = "INSERT INTO user (nama_user, email, password, alamat, level) VALUES (?, ?, ?, ?, 'user')";
-        $stmt_user = $koneksi->prepare($sql_user);
-        $stmt_user->bind_param('ssss', $nama_user, $email, $password, $alamat);
-        $stmt_user->execute();
-        $id_user = $koneksi->insert_id;
-        $stmt_user->close();
+        if (isset($_SESSION['user_id'])) {
+            // User sudah login, gunakan id_user dari session
+            $id_user = $_SESSION['user_id'];
+            // Update alamat user jika berbeda
+            $sql_update_alamat = "UPDATE user SET alamat = ? WHERE id_user = ?";
+            $stmt_update_alamat = $koneksi->prepare($sql_update_alamat);
+            $stmt_update_alamat->bind_param('si', $alamat, $id_user);
+            $stmt_update_alamat->execute();
+            $stmt_update_alamat->close();
+        } else {
+            // User belum login, redirect ke halaman login
+            header("Location: login.php?redirect=pesan.php");
+            exit;
+        }
 
         // Step 2: Buat record di tabel pesanan
         $total_harga = $_POST['total_harga'];
@@ -61,16 +96,43 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['checkout'])) {
         $id_pesanan = $koneksi->insert_id;
         $stmt_pesanan->close();
 
-        // Step 3: Pindahkan item dari keranjang ke detail_pesanan
+        // Step 3: Pindahkan item dari keranjang ke detail_pesanan dan kurangi stok produk
         $sql_detail = "INSERT INTO detail_pesanan (id_pesanan, id_produk, jumlah, subtotal) VALUES (?, ?, ?, ?)";
         $stmt_detail = $koneksi->prepare($sql_detail);
+
+        $sql_update_stock = "UPDATE produk SET stok = stok - ? WHERE id_produk = ? AND stok >= ?";
+        $stmt_update_stock = $koneksi->prepare($sql_update_stock);
+
         foreach ($_SESSION['keranjang'] as $id_produk => $jumlah) {
+            // Cek stok terlebih dahulu
+            $sql_check_stock = "SELECT stok FROM produk WHERE id_produk = ?";
+            $stmt_check_stock = $koneksi->prepare($sql_check_stock);
+            $stmt_check_stock->bind_param('i', $id_produk);
+            $stmt_check_stock->execute();
+            $result_check_stock = $stmt_check_stock->get_result();
+            $current_stock = $result_check_stock->fetch_assoc()['stok'];
+            $stmt_check_stock->close();
+
+            if ($current_stock < $jumlah) {
+                throw new Exception("Stok untuk produk dengan ID " . $id_produk . " tidak mencukupi.");
+            }
+
             $harga_produk = $_POST['harga_produk'][$id_produk];
             $subtotal = $harga_produk * $jumlah;
+            
+            // Insert ke detail_pesanan
             $stmt_detail->bind_param('iiid', $id_pesanan, $id_produk, $jumlah, $subtotal);
             $stmt_detail->execute();
+
+            // Kurangi stok produk
+            $stmt_update_stock->bind_param('iii', $jumlah, $id_produk, $jumlah);
+            $stmt_update_stock->execute();
+            if ($stmt_update_stock->affected_rows === 0) {
+                throw new Exception("Gagal mengurangi stok untuk produk dengan ID " . $id_produk . ". Stok mungkin tidak mencukupi.");
+            }
         }
         $stmt_detail->close();
+        $stmt_update_stock->close();
 
         // Jika semua query berhasil, commit transaksi
         $koneksi->commit();
@@ -208,10 +270,18 @@ if (!empty($_SESSION['keranjang'])) {
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="beranda.php">Beranda</a></li>
                     <li class="nav-item"><a class="nav-link" href="tentang.php">Tentang</a></li>
-                    <li class="nav-item"><a class="nav-link" href="index.php">Menu</a></li>
-                    <li class="nav-item"><a class="nav-link" href="transaksi.php">Lacak Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link" href="index.php">Toko</a></li>
+                    <?php if (!isset($_SESSION['user_id'])): ?>
+                        <li class="nav-item"><a class="nav-link" href="transaksi.php">Lacak Pesanan</a></li>
+                    <?php endif; ?>
                     <li class="nav-item"><a class="nav-link" href="kontak.php">Kontak</a></li>
                 </ul>
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <a href="profile.php" class="btn btn-primary ms-lg-3">Profile</a>
+                    <a href="logout_user.php" class="btn btn-outline-secondary ms-lg-3">Logout</a>
+                <?php else: ?>
+                    <a href="login.php" class="btn btn-outline-primary ms-lg-3">Login</a>
+                <?php endif; ?>
                 <a href="pesan.php" class="btn btn-primary ms-lg-3">
                     <i class="bi bi-cart"></i> Keranjang
                 </a>
@@ -241,7 +311,13 @@ if (!empty($_SESSION['keranjang'])) {
                                     <tr>
                                         <td><?php echo htmlspecialchars($produk['nama_produk']); ?></td>
                                         <td>Rp <?php echo number_format($produk['harga'], 0, ',', '.'); ?></td>
-                                        <td><?php echo $jumlah; ?></td>
+                                        <td>
+                                            <form action="pesan.php" method="POST" class="d-flex align-items-center">
+                                                <input type="hidden" name="update_quantity_id" value="<?php echo $produk['id_produk']; ?>">
+                                                <input type="number" name="quantity" value="<?php echo $jumlah; ?>" min="1" class="form-control form-control-sm text-center" style="width: 70px;">
+                                                <button type="submit" name="update_quantity" class="btn btn-sm btn-outline-secondary ms-2">Update</button>
+                                            </form>
+                                        </td>
                                         <td>Rp <?php echo number_format($subtotal, 0, ',', '.'); ?></td>
                                         <td><a href="pesan.php?hapus=<?php echo $produk['id_produk']; ?>" class="btn btn-sm btn-danger">Hapus</a></td>
                                     </tr>
@@ -265,6 +341,22 @@ if (!empty($_SESSION['keranjang'])) {
                                     <input type="hidden" name="harga_produk[<?php echo $produk['id_produk']; ?>]" value="<?php echo $produk['harga']; ?>">
                                 <?php endforeach; ?>
 
+                                <?php if ($logged_in_user): ?>
+                                <div class="mb-3">
+                                    <label class="form-label">Nama Lengkap</label>
+                                    <p class="form-control-plaintext"><?php echo htmlspecialchars($logged_in_user['nama_user']); ?></p>
+                                    <input type="hidden" name="nama_user" value="<?php echo htmlspecialchars($logged_in_user['nama_user']); ?>">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Email</label>
+                                    <p class="form-control-plaintext"><?php echo htmlspecialchars($logged_in_user['email']); ?></p>
+                                    <input type="hidden" name="email" value="<?php echo htmlspecialchars($logged_in_user['email']); ?>">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="alamat" class="form-label">Alamat Pengiriman</label>
+                                    <textarea class="form-control" name="alamat" rows="3" required><?php echo htmlspecialchars($logged_in_user['alamat'] ?? ''); ?></textarea>
+                                </div>
+                                <?php else: ?>
                                 <div class="mb-3">
                                     <label for="nama_user" class="form-label">Nama Lengkap</label>
                                     <input type="text" class="form-control" name="nama_user" required>
@@ -277,6 +369,7 @@ if (!empty($_SESSION['keranjang'])) {
                                     <label for="alamat" class="form-label">Alamat Pengiriman</label>
                                     <textarea class="form-control" name="alamat" rows="3" required></textarea>
                                 </div>
+                                <?php endif; ?>
                                 <div class="d-grid">
                                     <button type="submit" name="checkout" class="btn btn-primary">Konfirmasi Pesanan</button>
                                 </div>

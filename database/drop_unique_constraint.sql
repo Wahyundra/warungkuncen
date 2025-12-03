@@ -1,0 +1,1 @@
+ALTER TABLE product_ratings DROP INDEX unique_product_user_rating;

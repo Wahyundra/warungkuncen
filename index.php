@@ -1,9 +1,9 @@
 <?php
 require_once 'config/koneksi.php';
 
-// Query untuk mengambil semua data produk
-$sql = "SELECT * FROM produk ORDER BY id_produk DESC";
-$result = $koneksi->query($sql);
+// Query untuk mengambil semua toko yang disetujui
+$sql_toko = "SELECT * FROM toko WHERE status_toko = 'approved' ORDER BY nama_toko ASC";
+$result_toko = $koneksi->query($sql_toko);
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -135,10 +135,18 @@ $result = $koneksi->query($sql);
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="beranda.php">Beranda</a></li>
                     <li class="nav-item"><a class="nav-link" href="tentang.php">Tentang</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="index.php">Menu</a></li>
-                    <li class="nav-item"><a class="nav-link" href="transaksi.php">Lacak Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="index.php">Toko</a></li>
+                    <?php if (!isset($_SESSION['user_id'])): ?>
+                        <li class="nav-item"><a class="nav-link" href="transaksi.php">Lacak Pesanan</a></li>
+                    <?php endif; ?>
                     <li class="nav-item"><a class="nav-link" href="kontak.php">Kontak</a></li>
                 </ul>
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <a href="profile.php" class="btn btn-primary ms-lg-3">Profile</a>
+                    <a href="logout_user.php" class="btn btn-outline-secondary ms-lg-3">Logout</a>
+                <?php else: ?>
+                    <a href="login.php" class="btn btn-primary ms-lg-3">Login</a>
+                <?php endif; ?>
                 <a href="pesan.php" class="btn btn-outline-primary ms-lg-3">
                     <i class="bi bi-cart"></i> Keranjang
                 </a>
@@ -150,29 +158,45 @@ $result = $koneksi->query($sql);
     <div class="container mt-5">
         <div class="row text-center mb-4">
             <div class="col">
-                <h2>Menu Andalan Kami</h2>
+                <h2>Toko Andalan Kami</h2>
                 <p>Pilihan terbaik dari dapur Warung Kuncen.</p>
             </div>
         </div>
 
         <div class="row">
-            <?php if ($result && $result->num_rows > 0): ?>
-                <?php while($row = $result->fetch_assoc()): ?>
+            <?php if ($result_toko && $result_toko->num_rows > 0): ?>
+                <?php while($toko = $result_toko->fetch_assoc()): ?>
                     <div class="col-lg-3 col-md-4 col-sm-6">
-                        <div class="card product-card shadow-sm">
-                            <img src="assets/img/<?php echo htmlspecialchars($row['gambar']); ?>" class="card-img-top" alt="<?php echo htmlspecialchars($row['nama_produk']); ?>">
-                            <div class="card-body">
-                                <h5 class="card-title"><?php echo htmlspecialchars($row['nama_produk']); ?></h5>
-                                <p class="card-text"><?php echo htmlspecialchars($row['deskripsi']); ?></p>
-                                <p class="card-text"><strong>Rp <?php echo number_format($row['harga'], 0, ',', '.'); ?></strong></p>
-                                <a href="pesan.php?id=<?php echo $row['id_produk']; ?>" class="btn btn-primary w-100">Tambah ke Keranjang</a>
+                        <a href="shop_detail.php?id_toko=<?php echo $toko['id_toko']; ?>" class="text-decoration-none text-dark">
+                            <div class="card product-card shadow-sm">
+                                <img src="assets/img/<?php echo htmlspecialchars($toko['gambar_toko'] ?: 'default_shop.jpg'); ?>" class="card-img-top" alt="<?php echo htmlspecialchars($toko['nama_toko']); ?>">
+                                <div class="card-body">
+                                    <h5 class="card-title"><?php echo htmlspecialchars($toko['nama_toko']); ?></h5>
+                                    <p class="card-text small text-muted mb-1"><i class="bi bi-geo-alt-fill"></i> Lokasi: <?php echo htmlspecialchars($toko['lokasi_toko']); ?></p>
+                                    <p class="card-text small text-warning mb-2">
+                                        <?php
+                                        $rating = $toko['rating_toko'];
+                                        for ($i = 1; $i <= 5; $i++) {
+                                            if ($rating >= $i) {
+                                                echo '<i class="bi bi-star-fill"></i>';
+                                            } elseif ($rating > ($i - 1)) {
+                                                echo '<i class="bi bi-star-half"></i>';
+                                            } else {
+                                                echo '<i class="bi bi-star"></i>';
+                                            }
+                                        }
+                                        ?> (<?php echo number_format($rating, 1); ?>/5)
+                                    </p>
+                                    <p class="card-text"><?php echo htmlspecialchars(substr($toko['deskripsi_toko'], 0, 70)) . '...'; ?></p>
+                                    <p class="card-text"><strong>Lihat Menu</strong></p>
+                                </div>
                             </div>
-                        </div>
+                        </a>
                     </div>
                 <?php endwhile; ?>
             <?php else: ?>
                 <div class="col">
-                    <p class="text-center">Belum ada produk yang tersedia.</p>
+                    <p class="text-center">Belum ada toko yang tersedia.</p>
                 </div>
             <?php endif; ?>
         </div>

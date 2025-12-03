@@ -29,15 +29,26 @@ if ($result_pesanan->num_rows === 0) {
 $pesanan = $result_pesanan->fetch_assoc();
 $stmt_pesanan->close();
 
-// Ambil detail item pesanan
-$sql_detail = "SELECT dp.jumlah, dp.subtotal, pr.nama_produk, pr.gambar 
+// Ambil detail item pesanan, termasuk informasi toko
+$sql_detail = "SELECT dp.jumlah, dp.subtotal, pr.nama_produk, pr.gambar, t.nama_toko 
                FROM detail_pesanan dp 
                JOIN produk pr ON dp.id_produk = pr.id_produk 
-               WHERE dp.id_pesanan = ?";
+               LEFT JOIN toko t ON pr.id_toko = t.id_toko
+               WHERE dp.id_pesanan = ? 
+               ORDER BY t.nama_toko ASC";
 $stmt_detail = $koneksi->prepare($sql_detail);
 $stmt_detail->bind_param("i", $id_pesanan);
 $stmt_detail->execute();
 $result_detail = $stmt_detail->get_result();
+
+// Kelompokkan item berdasarkan toko
+$items_by_shop = [];
+if ($result_detail->num_rows > 0) {
+    while ($item = $result_detail->fetch_assoc()) {
+        $shop_name = $item['nama_toko'] ?: 'Toko Umum/Telah Dihapus';
+        $items_by_shop[$shop_name][] = $item;
+    }
+}
 
 ?>
 <!DOCTYPE html>
@@ -139,9 +150,10 @@ $result_detail = $stmt_detail->get_result();
         <hr>
         <ul class="nav nav-pills flex-column mb-auto">
             <li class="nav-item"><a href="index.php" class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-            <li><a href="kelola_produk.php" class="nav-link"><i class="bi bi-box-seam"></i> Kelola Produk</a></li>
+            <!-- <li><a href="kelola_produk.php" class="nav-link"><i class="bi bi-box-seam"></i> Kelola Produk</a></li> -->
             <li><a href="kelola_pesanan.php" class="nav-link active"><i class="bi bi-receipt"></i> Kelola Pesanan</a></li>
             <li><a href="kelola_pesan.php" class="nav-link"><i class="bi bi-envelope"></i> Kelola Pesan</a></li>
+            <li><a href="kelola_toko.php" class="nav-link"><i class="bi bi-shop"></i> Kelola Toko</a></li>
         </ul>
         <hr>
         <div class="dropdown">
@@ -193,32 +205,45 @@ $result_detail = $stmt_detail->get_result();
         <div class="card">
             <div class="card-header">Item yang Dipesan</div>
             <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Gambar</th>
-                                <th>Nama Produk</th>
-                                <th>Jumlah</th>
-                                <th>Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if ($result_detail && $result_detail->num_rows > 0): ?>
-                                <?php while($item = $result_detail->fetch_assoc()): ?>
+                <?php if (!empty($items_by_shop)):
+                    foreach ($items_by_shop as $nama_toko => $items):
+                        $subtotal_toko = 0;
+                ?>
+                        <h5 class="mt-3">Toko: <strong><?php echo htmlspecialchars($nama_toko); ?></strong></h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Gambar</th>
+                                        <th>Nama Produk</th>
+                                        <th>Jumlah</th>
+                                        <th>Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($items as $item) {
+                                        $subtotal_toko += $item['subtotal'];
+                                    ?>
                                     <tr>
                                         <td><img src="../assets/img/<?php echo htmlspecialchars($item['gambar']); ?>" class="product-img-sm"></td>
                                         <td><?php echo htmlspecialchars($item['nama_produk']); ?></td>
                                         <td><?php echo $item['jumlah']; ?></td>
                                         <td>Rp <?php echo number_format($item['subtotal'], 0, ',', '.'); ?></td>
                                     </tr>
-                                <?php endwhile; ?>
-                            <?php else: ?>
-                                <tr><td colspan="4" class="text-center">Tidak ada item dalam pesanan ini.</td></tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
+                                    <?php } ?>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="table-light">
+                                        <td colspan="3" class="text-end"><strong>Subtotal Toko:</strong></td>
+                                        <td class="fw-bold">Rp <?php echo number_format($subtotal_toko, 0, ',', '.'); ?></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <p class="text-center">Tidak ada item dalam pesanan ini.</p>
+                <?php endif; ?>
             </div>
         </div>
     </div>

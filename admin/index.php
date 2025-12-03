@@ -18,10 +18,20 @@ $pesanan_baru = $pesanan_baru_result->fetch_assoc()['total'];
 
 // Menghitung total pendapatan dari pesanan yang sudah selesai
 $pendapatan_result = $koneksi->query("SELECT SUM(total_harga) as total FROM pesanan WHERE status_pesanan = 'selesai'");
-$total_pendapatan = $pendapatan_result->fetch_assoc()['total'] ?? 0;
+    $total_pendapatan = $pendapatan_result->fetch_assoc()['total'] ?? 0;
 
-?>
-<!DOCTYPE html>
+// Query untuk mengambil distribusi status pesanan
+$sql_status_dist = "SELECT status_pesanan, COUNT(*) as count FROM pesanan GROUP BY status_pesanan";
+$result_status_dist = $koneksi->query($sql_status_dist);
+
+$order_status_labels = [];
+$order_status_data = [];
+while ($row = $result_status_dist->fetch_assoc()) {
+    $order_status_labels[] = ucfirst($row['status_pesanan']);
+    $order_status_data[] = $row['count'];
+}
+
+?><!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -119,13 +129,20 @@ $total_pendapatan = $pendapatan_result->fetch_assoc()['total'] ?? 0;
                     <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
             </li>
-            <li>
+            <!-- <li>
                 <a href="kelola_produk.php" class="nav-link">
                     <i class="bi bi-box-seam"></i> Kelola Produk
                 </a>
+            </li> -->
+            <li>
+                <a href="kelola_pesanan.php" class="nav-link"><i class="bi bi-receipt"></i> Kelola Pesanan</a>
             </li>
-                        <li><a href="kelola_pesanan.php" class="nav-link"><i class="bi bi-receipt"></i> Kelola Pesanan</a></li>
-                        <li><a href="kelola_pesan.php" class="nav-link"><i class="bi bi-envelope"></i> Kelola Pesan</a></li>
+            <li>
+                <a href="kelola_pesan.php" class="nav-link"><i class="bi bi-envelope"></i> Kelola Pesan</a>
+            </li>
+            <li>
+                <a href="kelola_toko.php" class="nav-link"><i class="bi bi-shop"></i> Kelola Toko</a>
+            </li>
         </ul>
         <hr>
         <div class="dropdown">
@@ -186,10 +203,18 @@ $total_pendapatan = $pendapatan_result->fetch_assoc()['total'] ?? 0;
         <div class="mt-5">
             <h2>Selamat Datang, <?php echo htmlspecialchars($_SESSION['admin_nama']); ?>!</h2>
             <p>Gunakan menu di samping untuk mengelola konten website Anda.</p>
+
+            <div class="card mt-4">
+                <div class="card-header">Distribusi Status Pesanan</div>
+                <div class="card-body">
+                    <canvas id="orderStatusChart"></canvas>
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const sidebar = document.getElementById('sidebar');
@@ -218,6 +243,59 @@ $total_pendapatan = $pendapatan_result->fetch_assoc()['total'] ?? 0;
             if (overlay) {
                 overlay.addEventListener('click', hideSidebar);
             }
+
+            // Chart.js for Order Status Distribution
+            const ctx = document.getElementById('orderStatusChart').getContext('2d');
+            const orderStatusChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: <?php echo json_encode($order_status_labels); ?>,
+                    datasets: [{
+                        label: 'Jumlah Pesanan',
+                        data: <?php echo json_encode($order_status_data); ?>,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.8)', // Merah untuk menunggu
+                            'rgba(54, 162, 235, 0.8)', // Biru untuk diproses
+                            'rgba(75, 192, 192, 0.8)', // Hijau untuk selesai
+                            'rgba(255, 206, 86, 0.8)'  // Kuning untuk dibatalkan
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(255, 206, 86, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false // Hide legend for bar chart if labels are on x-axis
+                        },
+                        title: {
+                            display: true,
+                            text: 'Distribusi Status Pesanan'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Jumlah Pesanan'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Status Pesanan'
+                            }
+                        }
+                    }
+                },
+            });
         });
     </script>
 </body>

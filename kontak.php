@@ -126,10 +126,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="beranda.php">Beranda</a></li>
                     <li class="nav-item"><a class="nav-link" href="tentang.php">Tentang</a></li>
-                    <li class="nav-item"><a class="nav-link" href="index.php">Menu</a></li>
-                    <li class="nav-item"><a class="nav-link" href="transaksi.php">Lacak Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link" href="index.php">Toko</a></li>
+                    <?php if (!isset($_SESSION['user_id'])): ?>
+                        <li class="nav-item"><a class="nav-link" href="transaksi.php">Lacak Pesanan</a></li>
+                    <?php endif; ?>
                     <li class="nav-item"><a class="nav-link active" href="kontak.php">Kontak</a></li>
                 </ul>
+                <?php if (isset($_SESSION['user_id'])): ?>
+                    <a href="profile.php" class="btn btn-primary ms-lg-3">Profile</a>
+                    <a href="logout_user.php" class="btn btn-outline-secondary ms-lg-3">Logout</a>
+                <?php else: ?>
+                    <a href="login.php" class="btn btn-primary ms-lg-3">Login</a>
+                <?php endif; ?>
                 <a href="pesan.php" class="btn btn-outline-primary ms-lg-3">
                     <i class="bi bi-cart"></i> Keranjang
                 </a>
